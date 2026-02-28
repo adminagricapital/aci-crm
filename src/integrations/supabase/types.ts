@@ -37,11 +37,13 @@ export type Database = {
           rccm: string | null
           region_id: string | null
           sexe: string
+          sous_prefecture_id: string | null
           status: Database["public"]["Enums"]["beneficiaire_status"]
           synced: boolean
           taille: number | null
           telephone: string
           updated_at: string
+          village_id: string | null
         }
         Insert: {
           categorie_metier?: string | null
@@ -65,11 +67,13 @@ export type Database = {
           rccm?: string | null
           region_id?: string | null
           sexe?: string
+          sous_prefecture_id?: string | null
           status?: Database["public"]["Enums"]["beneficiaire_status"]
           synced?: boolean
           taille?: number | null
           telephone: string
           updated_at?: string
+          village_id?: string | null
         }
         Update: {
           categorie_metier?: string | null
@@ -93,11 +97,13 @@ export type Database = {
           rccm?: string | null
           region_id?: string | null
           sexe?: string
+          sous_prefecture_id?: string | null
           status?: Database["public"]["Enums"]["beneficiaire_status"]
           synced?: boolean
           taille?: number | null
           telephone?: string
           updated_at?: string
+          village_id?: string | null
         }
         Relationships: [
           {
@@ -119,6 +125,20 @@ export type Database = {
             columns: ["region_id"]
             isOneToOne: false
             referencedRelation: "regions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "beneficiaires_sous_prefecture_id_fkey"
+            columns: ["sous_prefecture_id"]
+            isOneToOne: false
+            referencedRelation: "sous_prefectures"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "beneficiaires_village_id_fkey"
+            columns: ["village_id"]
+            isOneToOne: false
+            referencedRelation: "villages"
             referencedColumns: ["id"]
           },
         ]
@@ -510,6 +530,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      villages: {
+        Row: {
+          actif: boolean
+          created_at: string
+          id: string
+          nom: string
+          sous_prefecture_id: string
+          type: string
+        }
+        Insert: {
+          actif?: boolean
+          created_at?: string
+          id?: string
+          nom: string
+          sous_prefecture_id: string
+          type?: string
+        }
+        Update: {
+          actif?: boolean
+          created_at?: string
+          id?: string
+          nom?: string
+          sous_prefecture_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "villages_sous_prefecture_id_fkey"
+            columns: ["sous_prefecture_id"]
+            isOneToOne: false
+            referencedRelation: "sous_prefectures"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
