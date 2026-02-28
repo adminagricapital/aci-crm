@@ -26,8 +26,8 @@ export function DashboardHeader() {
     <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 shadow-card">
       <div className="flex items-center gap-3">
         <SidebarTrigger />
-        <div className="hidden sm:block">
-          <h2 className="text-sm font-semibold text-foreground">{user?.prenoms} {user?.nom}</h2>
+        <div className="hidden sm:block cursor-pointer" onClick={() => navigate("/dashboard/profil")}>
+          <h2 className="text-sm font-semibold text-foreground hover:text-primary transition-colors">{user?.prenoms} {user?.nom}</h2>
           <p className="text-xs text-muted-foreground">{user ? roleLabels[user.role] : ""}</p>
         </div>
       </div>

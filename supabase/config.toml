@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.seed-zones]
 verify_jwt = false
+
+[functions.create-user]
+verify_jwt = false

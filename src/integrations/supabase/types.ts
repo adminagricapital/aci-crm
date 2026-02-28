@@ -335,6 +335,8 @@ export type Database = {
       }
       profiles: {
         Row: {
+          cni_recto_url: string | null
+          cni_verso_url: string | null
           created_at: string
           departement: string | null
           district: string | null
@@ -351,6 +353,8 @@ export type Database = {
           username: string
         }
         Insert: {
+          cni_recto_url?: string | null
+          cni_verso_url?: string | null
           created_at?: string
           departement?: string | null
           district?: string | null
@@ -367,6 +371,8 @@ export type Database = {
           username: string
         }
         Update: {
+          cni_recto_url?: string | null
+          cni_verso_url?: string | null
           created_at?: string
           departement?: string | null
           district?: string | null
