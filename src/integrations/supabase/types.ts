@@ -511,6 +511,7 @@ export type Database = {
     }
     Functions: {
       generate_matricule: { Args: never; Returns: string }
+      get_email_by_username: { Args: { _username: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
