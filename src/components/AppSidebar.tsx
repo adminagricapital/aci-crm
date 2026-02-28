@@ -1,6 +1,6 @@
 import { useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Users, UserPlus, CreditCard, FileText, Settings, MapPin, Briefcase, BarChart3, Truck,
+  LayoutDashboard, Users, UserPlus, CreditCard, FileText, Settings, MapPin, Briefcase, BarChart3, Truck, UserCircle,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth, roleLabels, UserRole } from "@/contexts/AuthContext";
@@ -28,6 +28,7 @@ const navItems: NavItem[] = [
   { title: "Rapports", url: "/dashboard/rapports", icon: BarChart3, roles: ["super_admin", "dg", "assistante_dg", "comptable", "manager_national"] },
   { title: "Export PDF", url: "/dashboard/export", icon: FileText, roles: ["super_admin", "dg", "assistante_dg", "manager_national"] },
   { title: "Paramètres", url: "/dashboard/parametres", icon: Settings, roles: ["super_admin", "dg", "assistante_dg"] },
+  { title: "Mon Profil", url: "/dashboard/profil", icon: UserCircle, roles: ["super_admin", "dg", "assistante_dg", "comptable", "manager_national", "responsable_commercial", "chef_equipe", "commercial"] },
 ];
 
 export function AppSidebar() {

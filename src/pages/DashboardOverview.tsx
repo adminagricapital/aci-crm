@@ -36,6 +36,7 @@ const DashboardOverview = () => {
   const [dailyTrend, setDailyTrend] = useState<any[]>([]);
   const [topDistricts, setTopDistricts] = useState<any[]>([]);
   const [recentPayments, setRecentPayments] = useState<any[]>([]);
+  const [rcomData, setRcomData] = useState<any[]>([]);
 
   const showAdmin = user && isAdmin(user.role);
   const showFinance = user && ["super_admin", "dg", "assistante_dg", "comptable"].includes(user.role);
@@ -63,6 +64,7 @@ const DashboardOverview = () => {
         supabase.from("paiements").select("methode, montant, status").then(r => r),
         supabase.from("paiements").select("*, beneficiaires(nom, prenoms, matricule)").order("created_at", { ascending: false }).limit(5).then(r => r),
         supabase.from("beneficiaires").select("district_id, districts(nom)").then(r => r),
+        supabase.from("beneficiaires").select("commercial_id").then(r => r),
       ];
 
       const results = await Promise.all(queries);
@@ -141,6 +143,24 @@ const DashboardOverview = () => {
       setTopDistricts(
         Object.values(distCounts).sort((a, b) => b.count - a.count).slice(0, 8)
       );
+
+      // RCom distribution - get profiles for commercial IDs
+      const commercialIds = [...new Set((results[18].data || []).map((b: any) => b.commercial_id).filter(Boolean))];
+      if (commercialIds.length > 0) {
+        const { data: rcomProfiles } = await supabase
+          .from("profiles")
+          .select("id, nom, prenoms")
+          .in("id", commercialIds);
+
+        const rcomCounts: Record<string, { name: string; count: number }> = {};
+        (results[18].data || []).forEach((b: any) => {
+          const profile = rcomProfiles?.find((p: any) => p.id === b.commercial_id);
+          const name = profile ? `${profile.prenoms} ${profile.nom}` : "Non assigné";
+          if (!rcomCounts[name]) rcomCounts[name] = { name, count: 0 };
+          rcomCounts[name].count++;
+        });
+        setRcomData(Object.values(rcomCounts).sort((a, b) => b.count - a.count).slice(0, 10));
+      }
 
       // Daily trend (last 14 days)
       const dailyCounts: Record<string, number> = {};
@@ -312,6 +332,26 @@ const DashboardOverview = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* RCom Distribution */}
+      {rcomData.length > 0 && (
+        <Card className="shadow-card">
+          <CardContent className="p-6">
+            <h3 className="text-sm font-semibold text-foreground mb-4">Répartition par Responsable Commercial (RCom)</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={rcomData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} width={140} />
+                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+                  <Bar dataKey="count" fill="hsl(var(--chart-3))" radius={[0, 4, 4, 0]} name="Bénéficiaires" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Payment Method Pie + Recent Lists */}
       {showFinance && (

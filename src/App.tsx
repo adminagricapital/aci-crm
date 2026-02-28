@@ -16,6 +16,7 @@ import UtilisateursPage from "./pages/UtilisateursPage";
 import ZonesPage from "./pages/ZonesPage";
 import ExportPDFPage from "./pages/ExportPDFPage";
 import CartesDistributionPage from "./pages/CartesDistributionPage";
+import ProfilPage from "./pages/ProfilPage";
 import { RapportsPage, ParametresPage } from "./pages/PlaceholderPages";
 import NotFound from "./pages/NotFound";
 
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="rapports" element={<RapportsPage />} />
               <Route path="export" element={<ExportPDFPage />} />
               <Route path="parametres" element={<ParametresPage />} />
+              <Route path="profil" element={<ProfilPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
