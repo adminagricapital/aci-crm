@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Camera, Save, Smartphone } from "lucide-react";
+import { Camera, Save, Loader2 } from "lucide-react";
 import { mockMetiers } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,6 +17,7 @@ const EnregistrementPage = () => {
   const [categorie, setCategorie] = useState("");
   const [metier, setMetier] = useState("");
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({
     sexe: "M", nationalite: "Ivoirienne",
@@ -30,10 +31,32 @@ const EnregistrementPage = () => {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setPhotoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => setPhotoPreview(reader.result as string);
       reader.readAsDataURL(file);
     }
+  };
+
+  const uploadPhoto = async (beneficiaireId: string): Promise<string | null> => {
+    if (!photoFile) return null;
+    const ext = photoFile.name.split(".").pop();
+    const path = `${beneficiaireId}.${ext}`;
+    
+    const { error } = await supabase.storage
+      .from("beneficiaire-photos")
+      .upload(path, photoFile, { upsert: true });
+
+    if (error) {
+      console.error("Photo upload error:", error);
+      return null;
+    }
+
+    const { data } = supabase.storage
+      .from("beneficiaire-photos")
+      .getPublicUrl(path);
+
+    return data.publicUrl;
   };
 
   const update = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
@@ -62,15 +85,23 @@ const EnregistrementPage = () => {
 
     try {
       if (isOnline) {
-        // Generate matricule
         const { data: matricule } = await supabase.rpc("generate_matricule");
         
-        const { error } = await supabase.from("beneficiaires").insert({
+        const { data: inserted, error } = await supabase.from("beneficiaires").insert({
           ...beneficiaireData,
           matricule: matricule || `ACI-${Date.now()}`,
-        });
+        }).select("id").single();
 
         if (error) throw error;
+
+        // Upload photo after insert
+        if (inserted && photoFile) {
+          const photoUrl = await uploadPhoto(inserted.id);
+          if (photoUrl) {
+            await supabase.from("beneficiaires").update({ photo_url: photoUrl }).eq("id", inserted.id);
+          }
+        }
+
         toast({ title: "Enregistrement réussi", description: `Bénéficiaire enregistré: ${matricule}` });
       } else {
         addToQueue("insert", "beneficiaires", {
@@ -81,11 +112,11 @@ const EnregistrementPage = () => {
         toast({ title: "Sauvegardé hors ligne", description: "L'enregistrement sera synchronisé automatiquement." });
       }
 
-      // Reset form
       setForm({ sexe: "M", nationalite: "Ivoirienne" });
       setCategorie("");
       setMetier("");
       setPhotoPreview(null);
+      setPhotoFile(null);
     } catch (err: any) {
       toast({ title: "Erreur", description: err.message, variant: "destructive" });
     } finally {
@@ -222,7 +253,7 @@ const EnregistrementPage = () => {
         <div className="flex justify-end gap-3">
           <Button type="button" variant="outline">Annuler</Button>
           <Button type="submit" className="gradient-primary font-semibold px-8" disabled={isSubmitting}>
-            <Save className="h-4 w-4 mr-2" />
+            {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
             {isSubmitting ? "Enregistrement..." : "Enregistrer le bénéficiaire"}
           </Button>
         </div>
