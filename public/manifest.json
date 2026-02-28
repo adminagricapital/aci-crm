@@ -1,0 +1,24 @@
+{
+  "name": "ACI — Association des Commerciaux Ivoiriens",
+  "short_name": "ACI",
+  "description": "Plateforme de Gestion des Cartes de Travail — République de Côte d'Ivoire",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f7f5",
+  "theme_color": "#1e3a24",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
