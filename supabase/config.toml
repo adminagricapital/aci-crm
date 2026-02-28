@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.wave-payment]
 verify_jwt = false
+
+[functions.seed-zones]
+verify_jwt = false
