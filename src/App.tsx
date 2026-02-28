@@ -15,6 +15,7 @@ import PaiementsPage from "./pages/PaiementsPage";
 import UtilisateursPage from "./pages/UtilisateursPage";
 import ZonesPage from "./pages/ZonesPage";
 import ExportPDFPage from "./pages/ExportPDFPage";
+import ExportCSVPage from "./pages/ExportCSVPage";
 import CartesDistributionPage from "./pages/CartesDistributionPage";
 import ProfilPage from "./pages/ProfilPage";
 import { RapportsPage, ParametresPage } from "./pages/PlaceholderPages";
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="zones" element={<ZonesPage />} />
               <Route path="rapports" element={<RapportsPage />} />
               <Route path="export" element={<ExportPDFPage />} />
+              <Route path="export-csv" element={<ExportCSVPage />} />
               <Route path="parametres" element={<ParametresPage />} />
               <Route path="profil" element={<ProfilPage />} />
             </Route>
