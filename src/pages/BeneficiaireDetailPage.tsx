@@ -176,8 +176,12 @@ const BeneficiaireDetailPage = () => {
             </div>
             <CardContent className="p-4">
               <div className="flex gap-4">
-                <div className="w-24 h-30 bg-muted rounded-lg border border-border flex items-center justify-center flex-shrink-0">
-                  <User className="h-10 w-10 text-muted-foreground/40" />
+                <div className="w-24 h-30 bg-muted rounded-lg border border-border flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  {b.photo_url ? (
+                    <img src={b.photo_url} alt={`${b.nom} ${b.prenoms}`} className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="h-10 w-10 text-muted-foreground/40" />
+                  )}
                 </div>
                 <div className="flex-1 text-xs space-y-1">
                   <p><span className="text-muted-foreground">Nom :</span> <span className="font-bold">{b.nom}</span></p>

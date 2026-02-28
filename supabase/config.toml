@@ -1,1 +1,7 @@
 project_id = "upzhhgrozngmsorhrbch"
+
+[functions.setup-admin]
+verify_jwt = false
+
+[functions.wave-payment]
+verify_jwt = false
