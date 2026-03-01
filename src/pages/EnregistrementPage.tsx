@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { useNavigate } from "react-router-dom";
 
 const EnregistrementPage = () => {
   const [categorie, setCategorie] = useState("");
@@ -25,6 +26,7 @@ const EnregistrementPage = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { isOnline, addToQueue } = useOfflineSync();
+  const navigate = useNavigate();
 
   const metiersList = categorie ? mockMetiers[categorie as keyof typeof mockMetiers] || [] : [];
 
@@ -42,20 +44,9 @@ const EnregistrementPage = () => {
     if (!photoFile) return null;
     const ext = photoFile.name.split(".").pop();
     const path = `${beneficiaireId}.${ext}`;
-    
-    const { error } = await supabase.storage
-      .from("beneficiaire-photos")
-      .upload(path, photoFile, { upsert: true });
-
-    if (error) {
-      console.error("Photo upload error:", error);
-      return null;
-    }
-
-    const { data } = supabase.storage
-      .from("beneficiaire-photos")
-      .getPublicUrl(path);
-
+    const { error } = await supabase.storage.from("beneficiaire-photos").upload(path, photoFile, { upsert: true });
+    if (error) { console.error("Photo upload error:", error); return null; }
+    const { data } = supabase.storage.from("beneficiaire-photos").getPublicUrl(path);
     return data.publicUrl;
   };
 
@@ -77,6 +68,7 @@ const EnregistrementPage = () => {
       categorie_metier: categorie,
       domicile: form.domicile,
       telephone: form.telephone,
+      contact_secondaire: form.contact_secondaire || null,
       numero_mobile_money: form.mobile_money,
       operateur_mobile_money: form.operateur,
       rccm: form.rccm || null,
@@ -86,7 +78,6 @@ const EnregistrementPage = () => {
     try {
       if (isOnline) {
         const { data: matricule } = await supabase.rpc("generate_matricule");
-        
         const { data: inserted, error } = await supabase.from("beneficiaires").insert({
           ...beneficiaireData,
           matricule: matricule || `ACI-${Date.now()}`,
@@ -94,7 +85,6 @@ const EnregistrementPage = () => {
 
         if (error) throw error;
 
-        // Upload photo after insert
         if (inserted && photoFile) {
           const photoUrl = await uploadPhoto(inserted.id);
           if (photoUrl) {
@@ -102,12 +92,30 @@ const EnregistrementPage = () => {
           }
         }
 
+        // Log activity
+        if (inserted) {
+          await supabase.from("activity_logs").insert({
+            user_id: user!.id,
+            action: "create",
+            target_type: "beneficiaire",
+            target_id: inserted.id,
+            details: { matricule, nom: form.nom },
+          });
+        }
+
         toast({ title: "Enregistrement réussi", description: `Bénéficiaire enregistré: ${matricule}` });
+        
+        // Redirect to detail page
+        if (inserted) {
+          navigate(`/dashboard/beneficiaires/${inserted.id}`);
+          return;
+        }
       } else {
+        const localId = `local-${Date.now()}`;
         addToQueue("insert", "beneficiaires", {
           ...beneficiaireData,
           matricule: `ACI-LOCAL-${Date.now()}`,
-          local_id: `local-${Date.now()}`,
+          local_id: localId,
         });
         toast({ title: "Sauvegardé hors ligne", description: "L'enregistrement sera synchronisé automatiquement." });
       }
@@ -230,13 +238,14 @@ const EnregistrementPage = () => {
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
               <span className="w-7 h-7 rounded-full gradient-primary flex items-center justify-center text-xs font-bold text-primary-foreground">3</span>
-              Contact & Paiement
+              Contact
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Numéro d'urgence *</Label><Input type="tel" placeholder="07 XX XX XX XX" required className="h-10" value={form.telephone || ""} onChange={e => update("telephone", e.target.value)} /></div>
-              <div className="space-y-2"><Label>Numéro Mobile Money *</Label><Input type="tel" placeholder="07 XX XX XX XX" required className="h-10" value={form.mobile_money || ""} onChange={e => update("mobile_money", e.target.value)} /></div>
+              <div className="space-y-2"><Label>Contact principal *</Label><Input type="tel" placeholder="07 XX XX XX XX" required className="h-10" value={form.telephone || ""} onChange={e => update("telephone", e.target.value)} /></div>
+              <div className="space-y-2"><Label>Contact secondaire</Label><Input type="tel" placeholder="05 XX XX XX XX" className="h-10" value={form.contact_secondaire || ""} onChange={e => update("contact_secondaire", e.target.value)} /></div>
+              <div className="space-y-2"><Label>Numéro Mobile Money</Label><Input type="tel" placeholder="07 XX XX XX XX" className="h-10" value={form.mobile_money || ""} onChange={e => update("mobile_money", e.target.value)} /></div>
               <div className="space-y-2">
-                <Label>Opérateur *</Label>
+                <Label>Opérateur</Label>
                 <Select onValueChange={v => update("operateur", v)}>
                   <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
                   <SelectContent>
@@ -251,7 +260,7 @@ const EnregistrementPage = () => {
         </Card>
 
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline">Annuler</Button>
+          <Button type="button" variant="outline" onClick={() => navigate("/dashboard/beneficiaires")}>Annuler</Button>
           <Button type="submit" className="gradient-primary font-semibold px-8" disabled={isSubmitting}>
             {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
             {isSubmitting ? "Enregistrement..." : "Enregistrer le bénéficiaire"}
