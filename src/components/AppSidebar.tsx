@@ -1,14 +1,14 @@
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard, Users, UserPlus, CreditCard, FileText, Settings, MapPin, Briefcase, BarChart3, Truck, UserCircle, FileSpreadsheet,
+  LayoutDashboard, Users, UserPlus, CreditCard, FileText, Settings, MapPin, Briefcase, BarChart3, Truck, UserCircle, FileSpreadsheet, BookOpen, ClipboardList,
 } from "lucide-react";
-import { NavLink } from "@/components/NavLink";
 import { useAuth, roleLabels, UserRole } from "@/contexts/AuthContext";
 import aciLogo from "@/assets/aci-logo.jpeg";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface NavItem {
   title: string;
@@ -25,20 +25,31 @@ const navItems: NavItem[] = [
   { title: "Distribution Cartes", url: "/dashboard/cartes", icon: Truck, roles: ["super_admin", "dg", "assistante_dg", "manager_national", "responsable_commercial", "chef_equipe"] },
   { title: "Utilisateurs", url: "/dashboard/utilisateurs", icon: Briefcase, roles: ["super_admin", "dg", "assistante_dg"] },
   { title: "Zones", url: "/dashboard/zones", icon: MapPin, roles: ["super_admin", "dg", "assistante_dg", "manager_national"] },
+  { title: "Journal d'activité", url: "/dashboard/journal", icon: ClipboardList, roles: ["super_admin", "dg", "assistante_dg"] },
   { title: "Rapports", url: "/dashboard/rapports", icon: BarChart3, roles: ["super_admin", "dg", "assistante_dg", "comptable", "manager_national"] },
   { title: "Export PDF", url: "/dashboard/export", icon: FileText, roles: ["super_admin", "dg", "assistante_dg", "manager_national"] },
   { title: "Export CSV", url: "/dashboard/export-csv", icon: FileSpreadsheet, roles: ["super_admin", "dg", "assistante_dg", "comptable", "manager_national"] },
+  { title: "Guide", url: "/dashboard/guide", icon: BookOpen, roles: ["super_admin", "dg", "assistante_dg", "comptable", "manager_national", "responsable_commercial", "chef_equipe", "commercial"] },
   { title: "Paramètres", url: "/dashboard/parametres", icon: Settings, roles: ["super_admin", "dg", "assistante_dg"] },
   { title: "Mon Profil", url: "/dashboard/profil", icon: UserCircle, roles: ["super_admin", "dg", "assistante_dg", "comptable", "manager_national", "responsable_commercial", "chef_equipe", "commercial"] },
 ];
 
 export function AppSidebar() {
   const { user } = useAuth();
-  const { state } = useSidebar();
+  const { state, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const visibleItems = navItems.filter((item) => user && item.roles.includes(user.role));
+
+  const handleNavClick = (url: string) => {
+    navigate(url);
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -59,11 +70,13 @@ export function AppSidebar() {
             <SidebarMenu>
               {visibleItems.map((item) => (
                 <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild isActive={location.pathname === item.url}>
-                    <NavLink to={item.url} end className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                      <item.icon className="h-4 w-4 mr-2" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
+                  <SidebarMenuButton
+                    isActive={location.pathname === item.url}
+                    onClick={() => handleNavClick(item.url)}
+                    className="hover:bg-sidebar-accent/50 cursor-pointer"
+                  >
+                    <item.icon className="h-4 w-4 mr-2" />
+                    {!collapsed && <span>{item.title}</span>}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

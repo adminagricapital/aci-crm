@@ -18,6 +18,8 @@ import ExportPDFPage from "./pages/ExportPDFPage";
 import ExportCSVPage from "./pages/ExportCSVPage";
 import CartesDistributionPage from "./pages/CartesDistributionPage";
 import ProfilPage from "./pages/ProfilPage";
+import JournalPage from "./pages/JournalPage";
+import GuidePage from "./pages/GuidePage";
 import { RapportsPage, ParametresPage } from "./pages/PlaceholderPages";
 import NotFound from "./pages/NotFound";
 
@@ -42,9 +44,11 @@ const App = () => (
               <Route path="cartes" element={<CartesDistributionPage />} />
               <Route path="utilisateurs" element={<UtilisateursPage />} />
               <Route path="zones" element={<ZonesPage />} />
+              <Route path="journal" element={<JournalPage />} />
               <Route path="rapports" element={<RapportsPage />} />
               <Route path="export" element={<ExportPDFPage />} />
               <Route path="export-csv" element={<ExportCSVPage />} />
+              <Route path="guide" element={<GuidePage />} />
               <Route path="parametres" element={<ParametresPage />} />
               <Route path="profil" element={<ProfilPage />} />
             </Route>
