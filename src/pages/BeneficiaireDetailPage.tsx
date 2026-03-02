@@ -4,10 +4,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Printer, CreditCard, User, Smartphone } from "lucide-react";
+import { ArrowLeft, Printer, CreditCard, User, Smartphone, PenTool, CheckCircle } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import aciLogo from "@/assets/aci-logo.jpeg";
+import SignaturePad from "@/components/SignaturePad";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const statusColors: Record<string, string> = {
   enregistre: "bg-info text-info-foreground",
@@ -22,23 +25,32 @@ const BeneficiaireDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [b, setB] = useState<any>(null);
   const [paiements, setPaiements] = useState<any[]>([]);
+  const [carte, setCarte] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [payingType, setPayingType] = useState<string | null>(null);
+  const [showSignatures, setShowSignatures] = useState(false);
+  const [sigCommercial, setSigCommercial] = useState<string | null>(null);
+  const [sigBeneficiaire, setSigBeneficiaire] = useState<string | null>(null);
+  const [validatingDelivery, setValidatingDelivery] = useState(false);
 
-  useEffect(() => {
-    const fetch = async () => {
-      const { data: ben } = await supabase.from("beneficiaires").select("*").eq("id", id).single();
-      setB(ben);
-      if (ben) {
-        const { data: p } = await supabase.from("paiements").select("*").eq("beneficiaire_id", ben.id);
-        setPaiements(p || []);
-      }
-      setLoading(false);
-    };
-    fetch();
-  }, [id]);
+  const fetchData = async () => {
+    const { data: ben } = await supabase.from("beneficiaires").select("*").eq("id", id).single();
+    setB(ben);
+    if (ben) {
+      const [pRes, cRes] = await Promise.all([
+        supabase.from("paiements").select("*").eq("beneficiaire_id", ben.id),
+        supabase.from("cartes").select("*").eq("beneficiaire_id", ben.id).maybeSingle(),
+      ]);
+      setPaiements(pRes.data || []);
+      setCarte(cRes.data);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchData(); }, [id]);
 
   const handlePayment = async (type: string) => {
     if (!b) return;
@@ -51,32 +63,76 @@ const BeneficiaireDetailPage = () => {
           type_paiement: type,
           montant: type === "paiement_1" ? 1000 : 3000,
           telephone: b.numero_mobile_money || b.telephone,
-          user_id: (await supabase.auth.getUser()).data.user?.id,
+          user_id: user?.id,
         },
       });
-
       if (error) throw error;
+      if (data?.checkout_url) window.open(data.checkout_url, "_blank");
 
-      // Open Wave checkout (simulation)
-      if (data?.checkout_url) {
-        window.open(data.checkout_url, "_blank");
-      }
-
-      // Auto-confirm simulation after 2 seconds
       setTimeout(async () => {
         await supabase.functions.invoke("wave-payment", {
           body: { action: "confirm", paiement_id: data?.paiement_id },
         });
-        
-        // Refresh payments
-        const { data: p } = await supabase.from("paiements").select("*").eq("beneficiaire_id", b.id);
-        setPaiements(p || []);
-        toast({ title: "Paiement simulé", description: `Paiement ${type === "paiement_1" ? "1 000" : "3 000"} FCFA confirmé (simulation)` });
+        await fetchData();
+        toast({ title: "Paiement confirmé", description: `${type === "paiement_1" ? "1 000" : "3 000"} FCFA confirmé` });
         setPayingType(null);
       }, 3000);
     } catch (err: any) {
       toast({ title: "Erreur paiement", description: err.message, variant: "destructive" });
       setPayingType(null);
+    }
+  };
+
+  const handleValidateDelivery = async () => {
+    if (!sigCommercial || !sigBeneficiaire) {
+      toast({ title: "Signatures requises", description: "Les deux signatures sont obligatoires", variant: "destructive" });
+      return;
+    }
+    setValidatingDelivery(true);
+    try {
+      // Update or create carte with signatures
+      if (carte) {
+        await supabase.from("cartes").update({
+          status: "confirme" as any,
+          date_livraison: new Date().toISOString(),
+          date_confirmation: new Date().toISOString(),
+          livre_par: user?.id,
+          confirme_par: user?.id,
+          signature_commercial: sigCommercial,
+          signature_beneficiaire: sigBeneficiaire,
+        }).eq("id", carte.id);
+      } else {
+        await supabase.from("cartes").insert({
+          beneficiaire_id: b.id,
+          status: "confirme" as any,
+          date_livraison: new Date().toISOString(),
+          date_confirmation: new Date().toISOString(),
+          livre_par: user?.id,
+          confirme_par: user?.id,
+          signature_commercial: sigCommercial,
+          signature_beneficiaire: sigBeneficiaire,
+        });
+      }
+
+      // Update beneficiaire status
+      await supabase.from("beneficiaires").update({ status: "livre" as any }).eq("id", b.id);
+
+      // Log activity
+      await supabase.from("activity_logs").insert({
+        user_id: user!.id,
+        action: "delivery",
+        target_type: "beneficiaire",
+        target_id: b.id,
+        details: { matricule: b.matricule, action: "livraison_confirmee" },
+      });
+
+      toast({ title: "Livraison confirmée", description: "Carte livrée avec les deux signatures enregistrées" });
+      setShowSignatures(false);
+      await fetchData();
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } finally {
+      setValidatingDelivery(false);
     }
   };
 
@@ -95,6 +151,8 @@ const BeneficiaireDetailPage = () => {
 
   const hasPaiement1 = paiements.some(p => p.type_paiement === "paiement_1" && p.status === "paye");
   const hasPaiement2 = paiements.some(p => p.type_paiement === "paiement_2" && p.status === "paye");
+  const isDelivered = b.status === "livre" || carte?.status === "confirme";
+  const canDeliver = hasPaiement2 && !isDelivered;
   const qrData = JSON.stringify({ id: b.matricule, nom: b.nom, prenoms: b.prenoms, profession: b.profession });
 
   return (
@@ -122,41 +180,64 @@ const BeneficiaireDetailPage = () => {
               <div><span className="text-muted-foreground">Taille :</span><p className="font-medium">{b.taille} m</p></div>
               <div><span className="text-muted-foreground">Profession :</span><p className="font-medium">{b.profession}</p></div>
               <div className="col-span-2"><span className="text-muted-foreground">Domicile :</span><p className="font-medium">{b.domicile}</p></div>
-              <div><span className="text-muted-foreground">Téléphone :</span><p className="font-medium">{b.telephone}</p></div>
+              <div><span className="text-muted-foreground">Contact principal :</span><p className="font-medium">{b.telephone}</p></div>
+              {b.contact_secondaire && <div><span className="text-muted-foreground">Contact secondaire :</span><p className="font-medium">{b.contact_secondaire}</p></div>}
             </div>
 
+            {/* Paiements Section */}
             <div className="pt-4 border-t border-border">
               <h4 className="font-semibold text-foreground flex items-center gap-2 mb-3"><CreditCard className="h-4 w-4" /> Paiements</h4>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className={`w-3 h-3 rounded-full ${hasPaiement1 ? "bg-success" : "bg-muted"}`} />
-                    <span className="text-sm">1er paiement (1 000 F) : {hasPaiement1 ? "Payé" : "En attente"}</span>
+                    <span className="text-sm">Paiement inscription (1 000 F) : {hasPaiement1 ? "Payé ✓" : "En attente"}</span>
                   </div>
                   {!hasPaiement1 && (
                     <Button size="sm" variant="outline" onClick={() => handlePayment("paiement_1")} disabled={payingType !== null}>
                       <Smartphone className="h-3 w-3 mr-1" />
-                      {payingType === "paiement_1" ? "En cours..." : "Payer Wave"}
+                      {payingType === "paiement_1" ? "En cours..." : "Payer 1 000 F"}
                     </Button>
                   )}
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className={`w-3 h-3 rounded-full ${hasPaiement2 ? "bg-success" : "bg-muted"}`} />
-                    <span className="text-sm">2e paiement (3 000 F) : {hasPaiement2 ? "Payé" : "En attente"}</span>
+                    <span className="text-sm">Frais de livraison (3 000 F) : {hasPaiement2 ? "Payé ✓" : "En attente"}</span>
                   </div>
                   {!hasPaiement2 && hasPaiement1 && (
                     <Button size="sm" variant="outline" onClick={() => handlePayment("paiement_2")} disabled={payingType !== null}>
                       <Smartphone className="h-3 w-3 mr-1" />
-                      {payingType === "paiement_2" ? "En cours..." : "Payer Wave"}
+                      {payingType === "paiement_2" ? "En cours..." : "Payer 3 000 F"}
                     </Button>
                   )}
                 </div>
               </div>
             </div>
+
+            {/* Delivery Section */}
+            <div className="pt-4 border-t border-border">
+              <h4 className="font-semibold text-foreground flex items-center gap-2 mb-3"><PenTool className="h-4 w-4" /> Livraison</h4>
+              {isDelivered ? (
+                <div className="flex items-center gap-2 text-success">
+                  <CheckCircle className="h-5 w-5" />
+                  <span className="font-medium">Carte livrée et confirmée</span>
+                </div>
+              ) : canDeliver ? (
+                <Button className="gradient-primary font-semibold w-full" onClick={() => setShowSignatures(true)}>
+                  <PenTool className="h-4 w-4 mr-2" />
+                  Valider la livraison (avec signatures)
+                </Button>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {!hasPaiement2 ? "Le paiement des frais de livraison (3 000 F) est requis avant la validation." : ""}
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
+        {/* Card Preview */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-foreground">Aperçu de la Carte de Travail</h3>
@@ -207,7 +288,7 @@ const BeneficiaireDetailPage = () => {
                   <p><span className="text-muted-foreground">Téléphone :</span> <span className="font-semibold">{b.telephone}</span></p>
                   <p><span className="text-muted-foreground">Date d'enregistrement :</span> <span className="font-semibold">{new Date(b.created_at).toLocaleDateString("fr-FR")}</span></p>
                   <div className="pt-2 mt-2 border-t border-border">
-                    <p className="text-[8px] text-muted-foreground italic">Ce document est la propriété de l'ACI. En cas de perte, veuillez le restituer.</p>
+                    <p className="text-[8px] text-muted-foreground italic">Ce document est la propriété de l'ACI.</p>
                   </div>
                 </div>
                 <div className="flex flex-col items-center gap-1">
@@ -219,6 +300,32 @@ const BeneficiaireDetailPage = () => {
           </Card>
         </div>
       </div>
+
+      {/* Signature Dialog */}
+      <Dialog open={showSignatures} onOpenChange={setShowSignatures}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><PenTool className="h-5 w-5" /> Validation de la livraison</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground mb-4">
+            Les deux signatures sont obligatoires pour confirmer la livraison de la carte à {b.nom} {b.prenoms} ({b.matricule}).
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <SignaturePad label="Signature du commercial" onSignatureChange={setSigCommercial} />
+            <SignaturePad label="Signature du bénéficiaire" onSignatureChange={setSigBeneficiaire} />
+          </div>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setShowSignatures(false)}>Annuler</Button>
+            <Button
+              className="gradient-primary font-semibold"
+              onClick={handleValidateDelivery}
+              disabled={!sigCommercial || !sigBeneficiaire || validatingDelivery}
+            >
+              {validatingDelivery ? "Validation..." : "Confirmer la livraison"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

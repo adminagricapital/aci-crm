@@ -192,6 +192,8 @@ export type Database = {
           livre_par: string | null
           notes: string | null
           numero_carte: string | null
+          signature_beneficiaire: string | null
+          signature_commercial: string | null
           status: Database["public"]["Enums"]["card_status"]
           updated_at: string
         }
@@ -207,6 +209,8 @@ export type Database = {
           livre_par?: string | null
           notes?: string | null
           numero_carte?: string | null
+          signature_beneficiaire?: string | null
+          signature_commercial?: string | null
           status?: Database["public"]["Enums"]["card_status"]
           updated_at?: string
         }
@@ -222,6 +226,8 @@ export type Database = {
           livre_par?: string | null
           notes?: string | null
           numero_carte?: string | null
+          signature_beneficiaire?: string | null
+          signature_commercial?: string | null
           status?: Database["public"]["Enums"]["card_status"]
           updated_at?: string
         }
