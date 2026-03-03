@@ -39,6 +39,8 @@ const App = () => (
               <Route index element={<DashboardOverview />} />
               <Route path="beneficiaires" element={<BeneficiairesPage />} />
               <Route path="beneficiaires/:id" element={<BeneficiaireDetailPage />} />
+              <Route path="enrolement" element={<EnregistrementPage />} />
+              {/* Legacy route redirect */}
               <Route path="enregistrer" element={<EnregistrementPage />} />
               <Route path="paiements" element={<PaiementsPage />} />
               <Route path="cartes" element={<CartesDistributionPage />} />

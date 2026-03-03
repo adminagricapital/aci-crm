@@ -19,10 +19,10 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { title: "Tableau de bord", url: "/dashboard", icon: LayoutDashboard, roles: ["super_admin", "dg", "assistante_dg", "comptable", "manager_national", "responsable_commercial", "chef_equipe", "commercial"] },
-  { title: "Enregistrer", url: "/dashboard/enregistrer", icon: UserPlus, roles: ["super_admin", "commercial", "chef_equipe", "dg", "assistante_dg", "manager_national"] },
+  { title: "Enrôlement", url: "/dashboard/enrolement", icon: UserPlus, roles: ["super_admin", "commercial", "chef_equipe", "dg", "assistante_dg", "manager_national"] },
   { title: "Bénéficiaires", url: "/dashboard/beneficiaires", icon: Users, roles: ["super_admin", "dg", "assistante_dg", "manager_national", "responsable_commercial", "chef_equipe", "commercial"] },
-  { title: "Paiements", url: "/dashboard/paiements", icon: CreditCard, roles: ["super_admin", "dg", "assistante_dg", "comptable", "manager_national"] },
-  { title: "Distribution Cartes", url: "/dashboard/cartes", icon: Truck, roles: ["super_admin", "dg", "assistante_dg", "manager_national", "responsable_commercial", "chef_equipe"] },
+  { title: "Paiements", url: "/dashboard/paiements", icon: CreditCard, roles: ["super_admin", "dg", "assistante_dg", "comptable", "manager_national", "responsable_commercial", "chef_equipe", "commercial"] },
+  { title: "Distribution Cartes", url: "/dashboard/cartes", icon: Truck, roles: ["super_admin", "dg", "assistante_dg", "manager_national", "responsable_commercial", "chef_equipe", "commercial"] },
   { title: "Utilisateurs", url: "/dashboard/utilisateurs", icon: Briefcase, roles: ["super_admin", "dg", "assistante_dg"] },
   { title: "Zones", url: "/dashboard/zones", icon: MapPin, roles: ["super_admin", "dg", "assistante_dg", "manager_national"] },
   { title: "Journal d'activité", url: "/dashboard/journal", icon: ClipboardList, roles: ["super_admin", "dg", "assistante_dg"] },
