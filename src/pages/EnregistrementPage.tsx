@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,13 +20,39 @@ const EnregistrementPage = () => {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [form, setForm] = useState<Record<string, string>>({
-    sexe: "M", nationalite: "Ivoirienne",
-  });
+  const [form, setForm] = useState<Record<string, string>>({ sexe: "M", nationalite: "Ivoirienne" });
   const { toast } = useToast();
   const { user } = useAuth();
   const { isOnline, addToQueue } = useOfflineSync();
   const navigate = useNavigate();
+
+  // Load geography
+  const [districts, setDistricts] = useState<any[]>([]);
+  const [regions, setRegions] = useState<any[]>([]);
+  const [departements, setDepartements] = useState<any[]>([]);
+  const [sousPrefectures, setSousPrefectures] = useState<any[]>([]);
+  const [villages, setVillages] = useState<any[]>([]);
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from("districts").select("id, nom").eq("actif", true).order("nom"),
+      supabase.from("regions").select("id, nom, district_id").eq("actif", true).order("nom"),
+      supabase.from("departements").select("id, nom, region_id").eq("actif", true).order("nom"),
+      supabase.from("sous_prefectures").select("id, nom, departement_id").eq("actif", true).order("nom"),
+      supabase.from("villages").select("id, nom, sous_prefecture_id, type").eq("actif", true).order("nom"),
+    ]).then(([d, r, dep, sp, v]) => {
+      setDistricts(d.data || []);
+      setRegions(r.data || []);
+      setDepartements(dep.data || []);
+      setSousPrefectures(sp.data || []);
+      setVillages(v.data || []);
+    });
+  }, []);
+
+  const filteredRegions = form.district_id ? regions.filter(r => r.district_id === form.district_id) : [];
+  const filteredDeps = form.region_id ? departements.filter(d => d.region_id === form.region_id) : [];
+  const filteredSP = form.departement_id ? sousPrefectures.filter(sp => sp.departement_id === form.departement_id) : [];
+  const filteredVillages = form.sous_prefecture_id ? villages.filter(v => v.sous_prefecture_id === form.sous_prefecture_id) : [];
 
   const metiersList = categorie ? mockMetiers[categorie as keyof typeof mockMetiers] || [] : [];
 
@@ -73,6 +99,11 @@ const EnregistrementPage = () => {
       operateur_mobile_money: form.operateur,
       rccm: form.rccm || null,
       commercial_id: user?.id,
+      district_id: form.district_id || null,
+      region_id: form.region_id || null,
+      departement_id: form.departement_id || null,
+      sous_prefecture_id: form.sous_prefecture_id || null,
+      village_id: form.village_id || null,
     };
 
     try {
@@ -92,39 +123,24 @@ const EnregistrementPage = () => {
           }
         }
 
-        // Log activity
         if (inserted) {
           await supabase.from("activity_logs").insert({
-            user_id: user!.id,
-            action: "create",
-            target_type: "beneficiaire",
-            target_id: inserted.id,
+            user_id: user!.id, action: "create", target_type: "beneficiaire", target_id: inserted.id,
             details: { matricule, nom: form.nom },
           });
         }
 
-        toast({ title: "Enregistrement réussi", description: `Bénéficiaire enregistré: ${matricule}` });
-        
-        // Redirect to detail page
-        if (inserted) {
-          navigate(`/dashboard/beneficiaires/${inserted.id}`);
-          return;
-        }
+        toast({ title: "Enrôlement réussi", description: `Bénéficiaire enregistré: ${matricule}` });
+        if (inserted) { navigate(`/dashboard/beneficiaires/${inserted.id}`); return; }
       } else {
         const localId = `local-${Date.now()}`;
-        addToQueue("insert", "beneficiaires", {
-          ...beneficiaireData,
-          matricule: `ACI-LOCAL-${Date.now()}`,
-          local_id: localId,
-        });
+        addToQueue("insert", "beneficiaires", { ...beneficiaireData, matricule: `ACI-LOCAL-${Date.now()}`, local_id: localId });
         toast({ title: "Sauvegardé hors ligne", description: "L'enregistrement sera synchronisé automatiquement." });
       }
 
       setForm({ sexe: "M", nationalite: "Ivoirienne" });
-      setCategorie("");
-      setMetier("");
-      setPhotoPreview(null);
-      setPhotoFile(null);
+      setCategorie(""); setMetier("");
+      setPhotoPreview(null); setPhotoFile(null);
     } catch (err: any) {
       toast({ title: "Erreur", description: err.message, variant: "destructive" });
     } finally {
@@ -135,11 +151,12 @@ const EnregistrementPage = () => {
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Enregistrer un bénéficiaire</h1>
-        <p className="text-muted-foreground">Formulaire d'enregistrement terrain — Carte de Travail ACI</p>
+        <h1 className="text-2xl font-bold text-foreground">Enrôlement d'un bénéficiaire</h1>
+        <p className="text-muted-foreground">Formulaire d'enrôlement terrain — Carte de Travail ACI</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Section 1: Identity */}
         <Card className="shadow-card">
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -153,10 +170,7 @@ const EnregistrementPage = () => {
                     {photoPreview ? (
                       <img src={photoPreview} alt="Photo" className="w-full h-full object-cover" />
                     ) : (
-                      <>
-                        <Camera className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors" />
-                        <span className="text-xs text-muted-foreground mt-2">Photo ID</span>
-                      </>
+                      <><Camera className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors" /><span className="text-xs text-muted-foreground mt-2">Photo ID</span></>
                     )}
                   </div>
                   <input type="file" accept="image/*" capture="user" className="hidden" onChange={handlePhotoChange} />
@@ -165,7 +179,7 @@ const EnregistrementPage = () => {
               <div className="space-y-2"><Label>Nom *</Label><Input placeholder="KONAN" required className="h-10 uppercase" value={form.nom || ""} onChange={e => update("nom", e.target.value)} /></div>
               <div className="space-y-2"><Label>Prénom(s) *</Label><Input placeholder="Yao Jean" required className="h-10" value={form.prenoms || ""} onChange={e => update("prenoms", e.target.value)} /></div>
               <div className="space-y-2"><Label>Date de naissance *</Label><Input type="date" required className="h-10" value={form.date_naissance || ""} onChange={e => update("date_naissance", e.target.value)} /></div>
-              <div className="space-y-2"><Label>Lieu de naissance *</Label><Input placeholder="Bouaké, Côte d'Ivoire" required className="h-10" value={form.lieu_naissance || ""} onChange={e => update("lieu_naissance", e.target.value)} /></div>
+              <div className="space-y-2"><Label>Lieu de naissance *</Label><Input placeholder="Bouaké" required className="h-10" value={form.lieu_naissance || ""} onChange={e => update("lieu_naissance", e.target.value)} /></div>
               <div className="space-y-2">
                 <Label>Sexe *</Label>
                 <RadioGroup value={form.sexe} onValueChange={v => update("sexe", v)} className="flex gap-6 mt-2">
@@ -192,6 +206,7 @@ const EnregistrementPage = () => {
           </CardContent>
         </Card>
 
+        {/* Section 2: Métier & Localisation */}
         <Card className="shadow-card">
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -222,6 +237,46 @@ const EnregistrementPage = () => {
                   <Input placeholder="Saisissez le métier" required className="h-10" value={form.metier_autre || ""} onChange={e => update("metier_autre", e.target.value)} />
                 </div>
               )}
+
+              {/* Geographic selectors */}
+              <div className="space-y-2">
+                <Label>District</Label>
+                <Select value={form.district_id || ""} onValueChange={v => { update("district_id", v); update("region_id", ""); update("departement_id", ""); update("sous_prefecture_id", ""); update("village_id", ""); }}>
+                  <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent>{districts.map(d => <SelectItem key={d.id} value={d.id}>{d.nom}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Région</Label>
+                <Select value={form.region_id || ""} onValueChange={v => { update("region_id", v); update("departement_id", ""); update("sous_prefecture_id", ""); update("village_id", ""); }} disabled={!form.district_id}>
+                  <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent>{filteredRegions.map(r => <SelectItem key={r.id} value={r.id}>{r.nom}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Département</Label>
+                <Select value={form.departement_id || ""} onValueChange={v => { update("departement_id", v); update("sous_prefecture_id", ""); update("village_id", ""); }} disabled={!form.region_id}>
+                  <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent>{filteredDeps.map(d => <SelectItem key={d.id} value={d.id}>{d.nom}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Sous-préfecture</Label>
+                <Select value={form.sous_prefecture_id || ""} onValueChange={v => { update("sous_prefecture_id", v); update("village_id", ""); }} disabled={!form.departement_id}>
+                  <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent>{filteredSP.map(sp => <SelectItem key={sp.id} value={sp.id}>{sp.nom}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              {filteredVillages.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Village / Quartier</Label>
+                  <Select value={form.village_id || ""} onValueChange={v => update("village_id", v)} disabled={!form.sous_prefecture_id}>
+                    <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                    <SelectContent>{filteredVillages.map(v => <SelectItem key={v.id} value={v.id}>{v.nom}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="md:col-span-2 space-y-2">
                 <Label>Domicile / Adresse *</Label>
                 <Textarea placeholder="Quartier, commune, ville..." required className="min-h-[80px]" value={form.domicile || ""} onChange={e => update("domicile", e.target.value)} />
@@ -234,6 +289,7 @@ const EnregistrementPage = () => {
           </CardContent>
         </Card>
 
+        {/* Section 3: Contact */}
         <Card className="shadow-card">
           <CardContent className="p-6">
             <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -252,6 +308,7 @@ const EnregistrementPage = () => {
                     <SelectItem value="orange">Orange Money</SelectItem>
                     <SelectItem value="mtn">MTN MoMo</SelectItem>
                     <SelectItem value="wave">Wave</SelectItem>
+                    <SelectItem value="moov">Moov Money</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -263,7 +320,7 @@ const EnregistrementPage = () => {
           <Button type="button" variant="outline" onClick={() => navigate("/dashboard/beneficiaires")}>Annuler</Button>
           <Button type="submit" className="gradient-primary font-semibold px-8" disabled={isSubmitting}>
             {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-            {isSubmitting ? "Enregistrement..." : "Enregistrer le bénéficiaire"}
+            {isSubmitting ? "Enregistrement..." : "Enrôler le bénéficiaire"}
           </Button>
         </div>
       </form>

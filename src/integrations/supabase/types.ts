@@ -348,9 +348,11 @@ export type Database = {
           collected_by: string | null
           created_at: string
           id: string
+          id_transaction: string | null
           methode: string | null
           montant: number
           paid_at: string | null
+          preuve_url: string | null
           reference_wave: string | null
           status: Database["public"]["Enums"]["payment_status"]
           telephone_payeur: string | null
@@ -362,9 +364,11 @@ export type Database = {
           collected_by?: string | null
           created_at?: string
           id?: string
+          id_transaction?: string | null
           methode?: string | null
           montant: number
           paid_at?: string | null
+          preuve_url?: string | null
           reference_wave?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           telephone_payeur?: string | null
@@ -376,9 +380,11 @@ export type Database = {
           collected_by?: string | null
           created_at?: string
           id?: string
+          id_transaction?: string | null
           methode?: string | null
           montant?: number
           paid_at?: string | null
+          preuve_url?: string | null
           reference_wave?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           telephone_payeur?: string | null
@@ -549,6 +555,30 @@ export type Database = {
         }
         Relationships: []
       }
+      team_assignments: {
+        Row: {
+          assigned_by: string | null
+          chef_equipe_id: string
+          commercial_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          chef_equipe_id: string
+          commercial_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          assigned_by?: string | null
+          chef_equipe_id?: string
+          commercial_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           assigned_by: string | null
@@ -601,6 +631,68 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "villages_sous_prefecture_id_fkey"
+            columns: ["sous_prefecture_id"]
+            isOneToOne: false
+            referencedRelation: "sous_prefectures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zone_assignments: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          departement_id: string | null
+          district_id: string | null
+          id: string
+          region_id: string | null
+          sous_prefecture_id: string | null
+          user_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          departement_id?: string | null
+          district_id?: string | null
+          id?: string
+          region_id?: string | null
+          sous_prefecture_id?: string | null
+          user_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          departement_id?: string | null
+          district_id?: string | null
+          id?: string
+          region_id?: string | null
+          sous_prefecture_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zone_assignments_departement_id_fkey"
+            columns: ["departement_id"]
+            isOneToOne: false
+            referencedRelation: "departements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "zone_assignments_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "zone_assignments_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "regions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "zone_assignments_sous_prefecture_id_fkey"
             columns: ["sous_prefecture_id"]
             isOneToOne: false
             referencedRelation: "sous_prefectures"

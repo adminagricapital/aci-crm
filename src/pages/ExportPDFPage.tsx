@@ -43,7 +43,7 @@ const ExportPDFPage = () => {
     const doc = new jsPDF("p", "mm", "a4");
     const cardW = 85.6, cardH = 54;
     const marginX = 12, marginY = 10, gapX = 6, gapY = 4;
-    const cols = 2, rows = 4; // 8 cards per page (recto only)
+    const cols = 2, rows = 4;
     const cardsPerPage = cols * rows;
 
     for (let page = 0; page < Math.ceil(selectedCards.length / cardsPerPage); page++) {
@@ -59,7 +59,7 @@ const ExportPDFPage = () => {
     }
 
     doc.save(`ACI_Cartes_${new Date().toISOString().split("T")[0]}.pdf`);
-    toast({ title: "PDF généré", description: `${selectedCards.length} carte(s) recto exportée(s) — 8 par page A4` });
+    toast({ title: "PDF généré", description: `${selectedCards.length} carte(s) exportée(s)` });
   };
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
@@ -69,7 +69,7 @@ const ExportPDFPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Export PDF — Cartes de Travail</h1>
-          <p className="text-muted-foreground">Recto uniquement — 8 cartes par page A4</p>
+          <p className="text-muted-foreground">Recto — 8 cartes par page A4</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={selectAll}>
@@ -92,16 +92,13 @@ const ExportPDFPage = () => {
           {eligibles.length === 0 ? (
             <div className="text-center py-12">
               <Printer className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground">Aucun bénéficiaire éligible à l'impression.</p>
+              <p className="text-muted-foreground">Aucun bénéficiaire éligible.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {eligibles.map((b) => (
-                <Card
-                  key={b.id}
-                  className={`cursor-pointer transition-all border-2 ${selected.includes(b.id) ? "border-primary shadow-elevated" : "border-transparent shadow-card hover:shadow-elevated"}`}
-                  onClick={() => toggleSelect(b.id)}
-                >
+                <Card key={b.id} className={`cursor-pointer transition-all border-2 ${selected.includes(b.id) ? "border-primary shadow-elevated" : "border-transparent shadow-card"}`}
+                  onClick={() => toggleSelect(b.id)}>
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
                       <Checkbox checked={selected.includes(b.id)} className="mt-1" />
@@ -111,26 +108,6 @@ const ExportPDFPage = () => {
                           <span className="text-xs font-mono text-primary">{b.matricule}</span>
                         </div>
                         <p className="text-xs text-muted-foreground">{b.profession} — {b.domicile}</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 border border-border rounded-md overflow-hidden">
-                      <div className="bg-gradient-to-r from-[hsl(var(--sidebar-background))] to-[hsl(var(--secondary))] px-2 py-1 flex items-center justify-between">
-                        <span className="text-[7px] font-bold text-primary-foreground">CARTE DE TRAVAIL — RCI</span>
-                        <span className="text-[7px] font-mono text-primary-foreground">{b.matricule}</span>
-                      </div>
-                      <div className="p-2 flex items-center gap-2">
-                        <div className="w-8 h-10 bg-muted rounded flex items-center justify-center">
-                          <User className="h-4 w-4 text-muted-foreground/40" />
-                        </div>
-                        <div className="text-[8px] space-y-0.5">
-                          <p className="font-bold">{b.nom} {b.prenoms}</p>
-                          <p>{b.profession}</p>
-                          <p className="text-muted-foreground">{b.domicile}</p>
-                        </div>
-                        <div className="ml-auto">
-                          <QRCodeSVG value={b.matricule || b.id} size={28} />
-                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -151,71 +128,71 @@ function drawCardRecto(doc: any, b: any, x: number, y: number, w: number, h: num
 
   // Top band
   doc.setFillColor(20, 40, 70);
-  doc.roundedRect(x, y, w, 9, 2, 2, "F");
-  doc.rect(x, y + 7, w, 2, "F");
+  doc.roundedRect(x, y, w, 10, 2, 2, "F");
+  doc.rect(x, y + 8, w, 2, "F");
 
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(4);
+  doc.setFontSize(5);
   doc.setFont("helvetica", "normal");
-  doc.text("RÉPUBLIQUE DE CÔTE D'IVOIRE", x + 3, y + 3.5);
+  doc.text("RÉPUBLIQUE DE CÔTE D'IVOIRE", x + 3, y + 4);
 
-  doc.setFontSize(7);
+  doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.text("CARTE DE TRAVAIL", x + w / 2, y + 7.5, { align: "center" });
+  doc.text("CARTE DE TRAVAIL", x + w / 2, y + 8.5, { align: "center" });
 
   // Flag
   const flagX = x + w - 12;
   doc.setFillColor(255, 153, 0);
-  doc.rect(flagX, y + 1, 3, 7, "F");
+  doc.rect(flagX, y + 1, 3, 8, "F");
   doc.setFillColor(255, 255, 255);
-  doc.rect(flagX + 3, y + 1, 3, 7, "F");
+  doc.rect(flagX + 3, y + 1, 3, 8, "F");
   doc.setFillColor(0, 158, 73);
-  doc.rect(flagX + 6, y + 1, 3, 7, "F");
+  doc.rect(flagX + 6, y + 1, 3, 8, "F");
 
   // RCCM
   doc.setTextColor(80, 80, 80);
-  doc.setFontSize(4.5);
+  doc.setFontSize(5);
   doc.setFont("helvetica", "bold");
-  doc.text(`RCCM: ${b.rccm || "N/A"}`, x + w / 2, y + 12, { align: "center" });
+  doc.text(`RCCM: ${b.rccm || "N/A"}`, x + w / 2, y + 13, { align: "center" });
 
   // Photo placeholder
   doc.setFillColor(230, 230, 230);
-  doc.roundedRect(x + 3, y + 14, 16, 20, 1, 1, "F");
+  doc.roundedRect(x + 3, y + 15, 18, 22, 1, 1, "F");
   doc.setTextColor(170, 170, 170);
-  doc.setFontSize(4);
-  doc.text("PHOTO", x + 7.5, y + 25);
+  doc.setFontSize(5);
+  doc.text("PHOTO", x + 7, y + 27);
 
-  // Fields
-  const fx = x + 22, fy = y + 15;
+  // Fields - INCREASED FONT SIZE for readability
+  const fx = x + 24, fy = y + 16;
   const fields = [
     ["Nom", b.nom],
     ["Prénoms", b.prenoms],
-    ["Date naiss.", b.date_naissance],
-    ["Lieu naiss.", b.lieu_naissance],
+    ["Né(e) le", b.date_naissance],
+    ["Lieu", b.lieu_naissance],
     ["Sexe", b.sexe === "M" ? "M" : "F"],
     ["Taille", b.taille ? `${b.taille} m` : "-"],
     ["Nationalité", b.nationalite],
     ["Profession", b.profession],
     ["Domicile", b.domicile],
     ["Matricule", b.matricule],
-    ["Téléphone", b.telephone],
+    ["Tél", b.telephone],
   ];
 
-  doc.setFontSize(3.8);
+  doc.setFontSize(5);
   fields.forEach(([label, value], i) => {
-    const ly = fy + i * 3;
+    const ly = fy + i * 3.2;
     doc.setTextColor(80, 80, 80);
     doc.setFont("helvetica", "bold");
     doc.text(`${label}`, fx, ly);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(30, 30, 30);
-    const val = String(value || "-").substring(0, 30);
-    doc.text(`: ${val}`, fx + 16, ly);
+    const val = String(value || "-").substring(0, 28);
+    doc.text(`: ${val}`, fx + 17, ly);
   });
 
-  // Bottom date
+  // Bottom
   doc.setTextColor(100, 100, 100);
-  doc.setFontSize(3.5);
+  doc.setFontSize(4);
   doc.setFont("helvetica", "normal");
   const now = new Date();
   const expiry = new Date(now.getFullYear() + 2, now.getMonth(), now.getDate());
