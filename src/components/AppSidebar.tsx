@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard, Users, UserPlus, CreditCard, FileText, Settings, MapPin, Briefcase, BarChart3, Truck, UserCircle, FileSpreadsheet, BookOpen, ClipboardList,
+  LayoutDashboard, Users, UserPlus, CreditCard, FileText, Settings, MapPin, Briefcase, BarChart3, Truck, UserCircle, FileSpreadsheet, BookOpen, ClipboardList, UsersRound, MapPinned,
 } from "lucide-react";
 import { useAuth, roleLabels, UserRole } from "@/contexts/AuthContext";
 import aciLogo from "@/assets/aci-logo.jpeg";
@@ -25,6 +25,8 @@ const navItems: NavItem[] = [
   { title: "Distribution Cartes", url: "/dashboard/cartes", icon: Truck, roles: ["super_admin", "dg", "assistante_dg", "manager_national", "responsable_commercial", "chef_equipe", "commercial"] },
   { title: "Utilisateurs", url: "/dashboard/utilisateurs", icon: Briefcase, roles: ["super_admin", "dg", "assistante_dg"] },
   { title: "Zones", url: "/dashboard/zones", icon: MapPin, roles: ["super_admin", "dg", "assistante_dg", "manager_national"] },
+  { title: "Assignation Zones", url: "/dashboard/zone-assignments", icon: MapPinned, roles: ["super_admin", "dg", "assistante_dg", "manager_national", "responsable_commercial"] },
+  { title: "Gestion Équipes", url: "/dashboard/team-management", icon: UsersRound, roles: ["super_admin", "dg", "assistante_dg", "manager_national", "responsable_commercial"] },
   { title: "Journal d'activité", url: "/dashboard/journal", icon: ClipboardList, roles: ["super_admin", "dg", "assistante_dg"] },
   { title: "Rapports", url: "/dashboard/rapports", icon: BarChart3, roles: ["super_admin", "dg", "assistante_dg", "comptable", "manager_national"] },
   { title: "Export PDF", url: "/dashboard/export", icon: FileText, roles: ["super_admin", "dg", "assistante_dg", "manager_national"] },
