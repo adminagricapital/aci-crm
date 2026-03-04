@@ -23,7 +23,7 @@ const EnregistrementPage = () => {
   const [form, setForm] = useState<Record<string, string>>({ sexe: "M", nationalite: "Ivoirienne" });
   const { toast } = useToast();
   const { user } = useAuth();
-  const { isOnline, addToQueue } = useOfflineSync();
+  const { isOnline } = useOfflineSync();
   const navigate = useNavigate();
 
   // Load geography
@@ -134,7 +134,8 @@ const EnregistrementPage = () => {
         if (inserted) { navigate(`/dashboard/beneficiaires/${inserted.id}`); return; }
       } else {
         const localId = `local-${Date.now()}`;
-        addToQueue("insert", "beneficiaires", { ...beneficiaireData, matricule: `ACI-LOCAL-${Date.now()}`, local_id: localId });
+        const { addPendingAction } = await import("@/lib/offlineDB");
+        await addPendingAction("beneficiaires", "insert", { ...beneficiaireData, matricule: `ACI-LOCAL-${Date.now()}`, local_id: localId });
         toast({ title: "Sauvegardé hors ligne", description: "L'enregistrement sera synchronisé automatiquement." });
       }
 

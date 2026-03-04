@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
+import { cacheAuthCredentials, verifyOfflineCredentials } from "@/lib/offlineDB";
+import { fullSync } from "@/lib/syncEngine";
 
 export type UserRole = "super_admin" | "dg" | "assistante_dg" | "comptable" | "manager_national" | "responsable_commercial" | "chef_equipe" | "commercial";
 
@@ -25,6 +27,7 @@ interface AuthContextType {
   supabaseUser: SupabaseUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isOffline: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   signup: (data: SignupData) => Promise<void>;
@@ -50,6 +53,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   const fetchUserProfile = async (supaUser: SupabaseUser) => {
     try {
@@ -67,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (profile) {
-        setUser({
+        const userData: User = {
           id: profile.id,
           nom: profile.nom,
           prenoms: profile.prenoms,
@@ -81,11 +96,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           departement: profile.departement,
           sous_prefecture: profile.sous_prefecture,
           status: profile.status as any,
-        });
+        };
+        setUser(userData);
+        return userData;
       }
     } catch (err) {
       console.error("Error fetching profile:", err);
     }
+    return null;
   };
 
   useEffect(() => {
@@ -111,8 +129,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Auto-sync when coming back online
+  useEffect(() => {
+    if (!isOffline && user) {
+      fullSync(user.id).catch(console.error);
+    }
+  }, [isOffline, user]);
+
+  // Periodic sync every 60s when online
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(() => {
+      if (navigator.onLine) {
+        fullSync(user.id).catch(console.error);
+      }
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [user]);
+
   const login = async (username: string, password: string) => {
-    // Use RPC to bypass RLS for username lookup
+    if (!navigator.onLine) {
+      // Offline login
+      const cachedUser = await verifyOfflineCredentials(username, password);
+      if (!cachedUser) {
+        throw new Error("Connexion hors ligne impossible : identifiants non trouvés dans le cache local");
+      }
+      if (cachedUser.status !== "actif") {
+        throw new Error("Compte non actif");
+      }
+      setUser(cachedUser);
+      setIsLoading(false);
+      return;
+    }
+
+    // Online login
     const { data: email, error: lookupError } = await supabase
       .rpc("get_email_by_username", { _username: username });
 
@@ -126,10 +176,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (error) throw new Error(error.message === "Invalid login credentials" ? "Mot de passe incorrect" : error.message);
+
+    // Cache credentials for offline use after successful login
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const userData = await fetchUserProfile(session.user);
+      if (userData) {
+        await cacheAuthCredentials(username, password, userData);
+        // Trigger initial sync
+        fullSync(userData.id).catch(console.error);
+      }
+    }
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    if (navigator.onLine) {
+      await supabase.auth.signOut();
+    }
     setUser(null);
     setSupabaseUser(null);
   };
@@ -150,7 +213,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (error) throw error;
 
-    // Update profile with extra fields after signup
     const { data: session } = await supabase.auth.getSession();
     if (session?.session?.user) {
       await supabase.from("profiles").update({
@@ -163,7 +225,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, supabaseUser, isAuthenticated: !!user, isLoading, login, logout, signup }}>
+    <AuthContext.Provider value={{ user, supabaseUser, isAuthenticated: !!user, isLoading, isOffline, login, logout, signup }}>
       {children}
     </AuthContext.Provider>
   );

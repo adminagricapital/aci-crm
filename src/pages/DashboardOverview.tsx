@@ -23,7 +23,7 @@ const COLORS = [
 const DashboardOverview = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { isOnline, lastSyncAt, pendingCount, isSyncing, triggerSync, syncLogs } = useOfflineSync();
+  const { isOnline, pendingCount, isSyncing, triggerSync } = useOfflineSync();
   const [stats, setStats] = useState({
     total: 0, today: 0, enProduction: 0, livres: 0,
     paiements: 0, paiementsEnAttente: 0, users: 0, usersEnAttente: 0,
@@ -296,12 +296,6 @@ const DashboardOverview = () => {
                 <span className="text-sm text-muted-foreground">En attente</span>
                 <span className="text-sm font-semibold">{pendingCount} élément(s)</span>
               </div>
-              {lastSyncAt && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Dernière sync</span>
-                  <span className="text-xs">{new Date(lastSyncAt).toLocaleString("fr-FR")}</span>
-                </div>
-              )}
               <Button size="sm" className="w-full gradient-primary" onClick={triggerSync} disabled={isSyncing || !isOnline || pendingCount === 0}>
                 <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? "animate-spin" : ""}`} />
                 {isSyncing ? "Synchronisation..." : "Synchroniser"}
