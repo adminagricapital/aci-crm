@@ -17,6 +17,8 @@ import ZonesPage from "./pages/ZonesPage";
 import ExportPDFPage from "./pages/ExportPDFPage";
 import ExportCSVPage from "./pages/ExportCSVPage";
 import CartesDistributionPage from "./pages/CartesDistributionPage";
+import ZoneAssignmentPage from "./pages/ZoneAssignmentPage";
+import TeamManagementPage from "./pages/TeamManagementPage";
 import ProfilPage from "./pages/ProfilPage";
 import JournalPage from "./pages/JournalPage";
 import GuidePage from "./pages/GuidePage";
@@ -46,6 +48,8 @@ const App = () => (
               <Route path="cartes" element={<CartesDistributionPage />} />
               <Route path="utilisateurs" element={<UtilisateursPage />} />
               <Route path="zones" element={<ZonesPage />} />
+              <Route path="zone-assignments" element={<ZoneAssignmentPage />} />
+              <Route path="team-management" element={<TeamManagementPage />} />
               <Route path="journal" element={<JournalPage />} />
               <Route path="rapports" element={<RapportsPage />} />
               <Route path="export" element={<ExportPDFPage />} />
