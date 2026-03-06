@@ -21,34 +21,36 @@ const InscriptionPage = () => {
   const [districts, setDistricts] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
   const [departements, setDepartements] = useState<any[]>([]);
+  const [sousPrefectures, setSousPrefectures] = useState<any[]>([]);
   const navigate = useNavigate();
   const { signup } = useAuth();
   const { toast } = useToast();
 
-  // Load all geo data upfront (no auth needed for SELECT on geo tables now)
   useEffect(() => {
-    const loadGeo = async () => {
-      const [d, r, dep] = await Promise.all([
-        supabase.from("districts").select("id, nom").eq("actif", true).order("nom"),
-        supabase.from("regions").select("id, nom, district_id").eq("actif", true).order("nom"),
-        supabase.from("departements").select("id, nom, region_id").eq("actif", true).order("nom"),
-      ]);
-      setDistricts(d.data || []);
-      setRegions(r.data || []);
-      setDepartements(dep.data || []);
-    };
-    loadGeo();
+    supabase.from("districts").select("*").eq("actif", true).then(({ data }) => data && setDistricts(data));
   }, []);
 
-  const filteredRegions = form.district ? regions.filter(r => r.district_id === form.district) : [];
-  const filteredDeps = form.region ? departements.filter(d => d.region_id === form.region) : [];
+  useEffect(() => {
+    if (form.district) {
+      supabase.from("regions").select("*").eq("district_id", form.district).eq("actif", true).then(({ data }) => data && setRegions(data));
+    }
+  }, [form.district]);
 
-  // Role-based geo visibility:
-  // RCom: district + region
-  // Chef d'équipe: district + region + département
-  // Commercial: district + region + département
-  const showGeo = form.role_souhaite && registrableRoles.includes(form.role_souhaite);
+  useEffect(() => {
+    if (form.region) {
+      supabase.from("departements").select("*").eq("region_id", form.region).eq("actif", true).then(({ data }) => data && setDepartements(data));
+    }
+  }, [form.region]);
+
+  useEffect(() => {
+    if (form.departement) {
+      supabase.from("sous_prefectures").select("*").eq("departement_id", form.departement).eq("actif", true).then(({ data }) => data && setSousPrefectures(data));
+    }
+  }, [form.departement]);
+
+  const showGeo = form.role_souhaite && ["responsable_commercial", "chef_equipe", "commercial"].includes(form.role_souhaite);
   const showDept = form.role_souhaite && ["chef_equipe", "commercial"].includes(form.role_souhaite);
+  const showSP = form.role_souhaite === "commercial";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,7 +123,7 @@ const InscriptionPage = () => {
 
             <div className="space-y-2">
               <Label>Rôle souhaité *</Label>
-              <Select onValueChange={(v) => { update("role_souhaite", v); setForm(prev => ({ ...prev, district: undefined, region: undefined, departement: undefined })); }}>
+              <Select onValueChange={(v) => update("role_souhaite", v)}>
                 <SelectTrigger className="h-10"><SelectValue placeholder="Choisir un rôle" /></SelectTrigger>
                 <SelectContent>
                   {registrableRoles.map((r) => (
@@ -132,41 +134,51 @@ const InscriptionPage = () => {
             </div>
 
             {showGeo && (
-              <>
-                <div className="space-y-2 animate-fade-in">
-                  <Label>District *</Label>
-                  <Select value={form.district || ""} onValueChange={(v) => { update("district", v); setForm(prev => ({ ...prev, region: undefined, departement: undefined })); }}>
-                    <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner un district" /></SelectTrigger>
-                    <SelectContent>
-                      {districts.map((d: any) => (<SelectItem key={d.id} value={d.id}>{d.nom}</SelectItem>))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2 animate-fade-in">
+                <Label>District *</Label>
+                <Select onValueChange={(v) => { update("district", v); setRegions([]); setDepartements([]); }}>
+                  <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent>
+                    {districts.map((d: any) => (<SelectItem key={d.id} value={d.id}>{d.nom}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
-                {form.district && (
-                  <div className="space-y-2 animate-fade-in">
-                    <Label>Région *</Label>
-                    <Select value={form.region || ""} onValueChange={(v) => { update("region", v); setForm(prev => ({ ...prev, departement: undefined })); }}>
-                      <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner une région" /></SelectTrigger>
-                      <SelectContent>
-                        {filteredRegions.map((r: any) => (<SelectItem key={r.id} value={r.id}>{r.nom}</SelectItem>))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+            {showGeo && form.district && regions.length > 0 && (
+              <div className="space-y-2 animate-fade-in">
+                <Label>Région</Label>
+                <Select onValueChange={(v) => { update("region", v); setDepartements([]); }}>
+                  <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent>
+                    {regions.map((r: any) => (<SelectItem key={r.id} value={r.id}>{r.nom}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
-                {showDept && form.region && (
-                  <div className="space-y-2 animate-fade-in">
-                    <Label>Département</Label>
-                    <Select value={form.departement || ""} onValueChange={(v) => update("departement", v)}>
-                      <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner un département" /></SelectTrigger>
-                      <SelectContent>
-                        {filteredDeps.map((d: any) => (<SelectItem key={d.id} value={d.id}>{d.nom}</SelectItem>))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </>
+            {showDept && form.region && departements.length > 0 && (
+              <div className="space-y-2 animate-fade-in">
+                <Label>Département</Label>
+                <Select onValueChange={(v) => update("departement", v)}>
+                  <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent>
+                    {departements.map((d: any) => (<SelectItem key={d.id} value={d.id}>{d.nom}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {showSP && form.departement && sousPrefectures.length > 0 && (
+              <div className="space-y-2 animate-fade-in">
+                <Label>Sous-préfecture</Label>
+                <Select onValueChange={(v) => update("sous_prefecture", v)}>
+                  <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent>
+                    {sousPrefectures.map((s: any) => (<SelectItem key={s.id} value={s.id}>{s.nom}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
 
             <Button type="submit" className="w-full h-11 gradient-primary font-semibold mt-2" disabled={isLoading}>

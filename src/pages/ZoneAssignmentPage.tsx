@@ -77,8 +77,7 @@ const ZoneAssignmentPage = () => {
       return;
     }
     toast({ title: "Zone assignée avec succès" });
-    // Don't reset user/district to allow assigning multiple sous-prefectures quickly
-    setSelectedSP("");
+    setSelectedUser(""); setSelectedDistrict(""); setSelectedRegion(""); setSelectedDepartement(""); setSelectedSP("");
     fetchAll();
   };
 
@@ -104,7 +103,7 @@ const ZoneAssignmentPage = () => {
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <MapPin className="h-6 w-6 text-primary" /> Assignation des Zones
         </h1>
-        <p className="text-muted-foreground">Assigner des zones géographiques aux RCom, chefs d'équipe et commerciaux. Vous pouvez assigner plusieurs sous-préfectures.</p>
+        <p className="text-muted-foreground">Assigner des zones géographiques aux RCom, chefs d'équipe et commerciaux</p>
       </div>
 
       <Card className="shadow-card">

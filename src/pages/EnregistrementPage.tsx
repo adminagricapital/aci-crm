@@ -26,91 +26,28 @@ const EnregistrementPage = () => {
   const { isOnline } = useOfflineSync();
   const navigate = useNavigate();
 
-  // Zone-restricted geo data for commercial
-  const [assignedZones, setAssignedZones] = useState<any[]>([]);
+  // Load geography
   const [districts, setDistricts] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
   const [departements, setDepartements] = useState<any[]>([]);
   const [sousPrefectures, setSousPrefectures] = useState<any[]>([]);
   const [villages, setVillages] = useState<any[]>([]);
-  const [geoLoaded, setGeoLoaded] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
-    const loadGeo = async () => {
-      // Load zone assignments for current user
-      const { data: zones } = await supabase
-        .from("zone_assignments")
-        .select("district_id, region_id, departement_id, sous_prefecture_id")
-        .eq("user_id", user.id);
-
-      const myZones = zones || [];
-      setAssignedZones(myZones);
-
-      // Load all geo data
-      const [d, r, dep, sp, v] = await Promise.all([
-        supabase.from("districts").select("id, nom").eq("actif", true).order("nom"),
-        supabase.from("regions").select("id, nom, district_id").eq("actif", true).order("nom"),
-        supabase.from("departements").select("id, nom, region_id").eq("actif", true).order("nom"),
-        supabase.from("sous_prefectures").select("id, nom, departement_id").eq("actif", true).order("nom"),
-        supabase.from("villages").select("id, nom, sous_prefecture_id, type").eq("actif", true).order("nom"),
-      ]);
-
-      const isAdminUser = ["super_admin", "dg", "assistante_dg", "manager_national"].includes(user.role);
-
-      if (isAdminUser || myZones.length === 0) {
-        // Admins see all geo
-        setDistricts(d.data || []);
-        setRegions(r.data || []);
-        setDepartements(dep.data || []);
-        setSousPrefectures(sp.data || []);
-        setVillages(v.data || []);
-      } else {
-        // Filter by assigned zones
-        const assignedDistrictIds = new Set(myZones.map(z => z.district_id).filter(Boolean));
-        const assignedRegionIds = new Set(myZones.map(z => z.region_id).filter(Boolean));
-        const assignedDeptIds = new Set(myZones.map(z => z.departement_id).filter(Boolean));
-        const assignedSPIds = new Set(myZones.map(z => z.sous_prefecture_id).filter(Boolean));
-
-        const filteredDistricts = (d.data || []).filter((x: any) => assignedDistrictIds.has(x.id));
-        setDistricts(filteredDistricts);
-
-        // For regions: if specific regions assigned, show those. Otherwise show all regions under assigned districts
-        let filteredRegions = (r.data || []);
-        if (assignedRegionIds.size > 0) {
-          filteredRegions = filteredRegions.filter((x: any) => assignedRegionIds.has(x.id) || assignedDistrictIds.has(x.district_id));
-        } else {
-          filteredRegions = filteredRegions.filter((x: any) => assignedDistrictIds.has(x.district_id));
-        }
-        setRegions(filteredRegions);
-
-        let filteredDeps = (dep.data || []);
-        if (assignedDeptIds.size > 0) {
-          const validRegionIds = new Set(filteredRegions.map((r: any) => r.id));
-          filteredDeps = filteredDeps.filter((x: any) => assignedDeptIds.has(x.id) || validRegionIds.has(x.region_id));
-        } else {
-          const validRegionIds = new Set(filteredRegions.map((r: any) => r.id));
-          filteredDeps = filteredDeps.filter((x: any) => validRegionIds.has(x.region_id));
-        }
-        setDepartements(filteredDeps);
-
-        let filteredSP = (sp.data || []);
-        if (assignedSPIds.size > 0) {
-          const validDeptIds = new Set(filteredDeps.map((d: any) => d.id));
-          filteredSP = filteredSP.filter((x: any) => assignedSPIds.has(x.id) || validDeptIds.has(x.departement_id));
-        } else {
-          const validDeptIds = new Set(filteredDeps.map((d: any) => d.id));
-          filteredSP = filteredSP.filter((x: any) => validDeptIds.has(x.departement_id));
-        }
-        setSousPrefectures(filteredSP);
-
-        const validSPIds = new Set(filteredSP.map((s: any) => s.id));
-        setVillages((v.data || []).filter((x: any) => validSPIds.has(x.sous_prefecture_id)));
-      }
-      setGeoLoaded(true);
-    };
-    loadGeo();
-  }, [user]);
+    Promise.all([
+      supabase.from("districts").select("id, nom").eq("actif", true).order("nom"),
+      supabase.from("regions").select("id, nom, district_id").eq("actif", true).order("nom"),
+      supabase.from("departements").select("id, nom, region_id").eq("actif", true).order("nom"),
+      supabase.from("sous_prefectures").select("id, nom, departement_id").eq("actif", true).order("nom"),
+      supabase.from("villages").select("id, nom, sous_prefecture_id, type").eq("actif", true).order("nom"),
+    ]).then(([d, r, dep, sp, v]) => {
+      setDistricts(d.data || []);
+      setRegions(r.data || []);
+      setDepartements(dep.data || []);
+      setSousPrefectures(sp.data || []);
+      setVillages(v.data || []);
+    });
+  }, []);
 
   const filteredRegions = form.district_id ? regions.filter(r => r.district_id === form.district_id) : [];
   const filteredDeps = form.region_id ? departements.filter(d => d.region_id === form.region_id) : [];
@@ -302,47 +239,41 @@ const EnregistrementPage = () => {
                 </div>
               )}
 
-              {/* Geographic selectors - filtered by assigned zones */}
+              {/* Geographic selectors */}
               <div className="space-y-2">
-                <Label>District *</Label>
+                <Label>District</Label>
                 <Select value={form.district_id || ""} onValueChange={v => { update("district_id", v); update("region_id", ""); update("departement_id", ""); update("sous_prefecture_id", ""); update("village_id", ""); }}>
                   <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
                   <SelectContent>{districts.map(d => <SelectItem key={d.id} value={d.id}>{d.nom}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              {form.district_id && filteredRegions.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Région *</Label>
-                  <Select value={form.region_id || ""} onValueChange={v => { update("region_id", v); update("departement_id", ""); update("sous_prefecture_id", ""); update("village_id", ""); }}>
-                    <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                    <SelectContent>{filteredRegions.map(r => <SelectItem key={r.id} value={r.id}>{r.nom}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-              )}
-              {form.region_id && filteredDeps.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Département *</Label>
-                  <Select value={form.departement_id || ""} onValueChange={v => { update("departement_id", v); update("sous_prefecture_id", ""); update("village_id", ""); }}>
-                    <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                    <SelectContent>{filteredDeps.map(d => <SelectItem key={d.id} value={d.id}>{d.nom}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-              )}
-              {form.departement_id && filteredSP.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Sous-préfecture *</Label>
-                  <Select value={form.sous_prefecture_id || ""} onValueChange={v => { update("sous_prefecture_id", v); update("village_id", ""); }}>
-                    <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                    <SelectContent>{filteredSP.map(sp => <SelectItem key={sp.id} value={sp.id}>{sp.nom}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-              )}
-              {form.sous_prefecture_id && filteredVillages.length > 0 && (
+              <div className="space-y-2">
+                <Label>Région</Label>
+                <Select value={form.region_id || ""} onValueChange={v => { update("region_id", v); update("departement_id", ""); update("sous_prefecture_id", ""); update("village_id", ""); }} disabled={!form.district_id}>
+                  <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent>{filteredRegions.map(r => <SelectItem key={r.id} value={r.id}>{r.nom}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Département</Label>
+                <Select value={form.departement_id || ""} onValueChange={v => { update("departement_id", v); update("sous_prefecture_id", ""); update("village_id", ""); }} disabled={!form.region_id}>
+                  <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent>{filteredDeps.map(d => <SelectItem key={d.id} value={d.id}>{d.nom}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Sous-préfecture</Label>
+                <Select value={form.sous_prefecture_id || ""} onValueChange={v => { update("sous_prefecture_id", v); update("village_id", ""); }} disabled={!form.departement_id}>
+                  <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent>{filteredSP.map(sp => <SelectItem key={sp.id} value={sp.id}>{sp.nom}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              {filteredVillages.length > 0 && (
                 <div className="space-y-2">
                   <Label>Village / Quartier</Label>
-                  <Select value={form.village_id || ""} onValueChange={v => update("village_id", v)}>
+                  <Select value={form.village_id || ""} onValueChange={v => update("village_id", v)} disabled={!form.sous_prefecture_id}>
                     <SelectTrigger className="h-10"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                    <SelectContent>{filteredVillages.map(v => <SelectItem key={v.id} value={v.id}>{v.nom} ({v.type})</SelectItem>)}</SelectContent>
+                    <SelectContent>{filteredVillages.map(v => <SelectItem key={v.id} value={v.id}>{v.nom}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               )}
@@ -386,10 +317,13 @@ const EnregistrementPage = () => {
           </CardContent>
         </Card>
 
-        <Button type="submit" className="w-full h-12 gradient-primary font-semibold text-base" disabled={isSubmitting}>
-          {isSubmitting ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Save className="h-5 w-5 mr-2" />}
-          {isSubmitting ? "Enregistrement en cours..." : "Enregistrer le bénéficiaire"}
-        </Button>
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="outline" onClick={() => navigate("/dashboard/beneficiaires")}>Annuler</Button>
+          <Button type="submit" className="gradient-primary font-semibold px-8" disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            {isSubmitting ? "Enregistrement..." : "Enrôler le bénéficiaire"}
+          </Button>
+        </div>
       </form>
     </div>
   );
