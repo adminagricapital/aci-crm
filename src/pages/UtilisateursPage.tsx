@@ -11,7 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const allRoles: UserRole[] = ["super_admin", "dg", "assistante_dg", "comptable", "manager_national", "responsable_commercial", "chef_equipe", "commercial"];
 
@@ -36,10 +35,12 @@ const UtilisateursPage = () => {
   const [districts, setDistricts] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
   const [departements, setDepartements] = useState<any[]>([]);
+  const [sousPrefectures, setSousPrefectures] = useState<any[]>([]);
   const [selectedCommercial, setSelectedCommercial] = useState("");
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [selectedRegion, setSelectedRegion] = useState("");
   const [selectedDepartement, setSelectedDepartement] = useState("");
+  const [selectedSP, setSelectedSP] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -61,14 +62,16 @@ const UtilisateursPage = () => {
   };
 
   const fetchGeo = async () => {
-    const [d, r, dep] = await Promise.all([
-      supabase.from("districts").select("id, nom").order("nom"),
-      supabase.from("regions").select("id, nom, district_id").order("nom"),
-      supabase.from("departements").select("id, nom, region_id").order("nom"),
+    const [d, r, dep, sp] = await Promise.all([
+      supabase.from("districts").select("id, nom").eq("actif", true).order("nom"),
+      supabase.from("regions").select("id, nom, district_id").eq("actif", true).order("nom"),
+      supabase.from("departements").select("id, nom, region_id").eq("actif", true).order("nom"),
+      supabase.from("sous_prefectures").select("id, nom, departement_id").eq("actif", true).order("nom"),
     ]);
     setDistricts(d.data || []);
     setRegions(r.data || []);
     setDepartements(dep.data || []);
+    setSousPrefectures(sp.data || []);
   };
 
   useEffect(() => { fetchUsers(); fetchGeo(); }, []);
@@ -165,37 +168,41 @@ const UtilisateursPage = () => {
   // Zone management
   const openZoneDialog = async (u: any) => {
     setSelectedUser(u);
-    const { data } = await supabase.from("zone_assignments").select("*, districts(nom), regions(nom), departements(nom)").eq("user_id", u.id);
+    setSelectedDistrict(""); setSelectedRegion(""); setSelectedDepartement(""); setSelectedSP("");
+    const { data } = await supabase.from("zone_assignments").select("*, districts(nom), regions(nom), departements(nom), sous_prefectures(nom)").eq("user_id", u.id);
     setZoneAssignments(data || []);
     setShowZone(true);
   };
 
   const addZoneAssignment = async () => {
-    if (!selectedUser) return;
+    if (!selectedUser || !selectedDistrict) return;
     const { error } = await supabase.from("zone_assignments").insert({
       user_id: selectedUser.id,
       district_id: selectedDistrict || null,
       region_id: selectedRegion || null,
       departement_id: selectedDepartement || null,
+      sous_prefecture_id: selectedSP || null,
       assigned_by: user?.id,
     });
     if (error) { toast({ title: "Erreur", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Zone assignée" });
-    const { data } = await supabase.from("zone_assignments").select("*, districts(nom), regions(nom), departements(nom)").eq("user_id", selectedUser.id);
+    setSelectedSP("");
+    const { data } = await supabase.from("zone_assignments").select("*, districts(nom), regions(nom), departements(nom), sous_prefectures(nom)").eq("user_id", selectedUser.id);
     setZoneAssignments(data || []);
   };
 
   const removeZoneAssignment = async (id: string) => {
     await supabase.from("zone_assignments").delete().eq("id", id);
-    const { data } = await supabase.from("zone_assignments").select("*, districts(nom), regions(nom), departements(nom)").eq("user_id", selectedUser.id);
+    const { data } = await supabase.from("zone_assignments").select("*, districts(nom), regions(nom), departements(nom), sous_prefectures(nom)").eq("user_id", selectedUser.id);
     setZoneAssignments(data || []);
     toast({ title: "Zone retirée" });
   };
 
   const canManage = user && isAdmin(user.role);
   const commercials = utilisateurs.filter(u => u.role === "commercial");
-  const filteredRegions = selectedDistrict ? regions.filter(r => r.district_id === selectedDistrict) : regions;
-  const filteredDeps = selectedRegion ? departements.filter(d => d.region_id === selectedRegion) : departements;
+  const filteredRegions = selectedDistrict ? regions.filter(r => r.district_id === selectedDistrict) : [];
+  const filteredDeps = selectedRegion ? departements.filter(d => d.region_id === selectedRegion) : [];
+  const filteredSPs = selectedDepartement ? sousPrefectures.filter(s => s.departement_id === selectedDepartement) : [];
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -378,40 +385,46 @@ const UtilisateursPage = () => {
 
       {/* Zone Assignment Dialog */}
       <Dialog open={showZone} onOpenChange={setShowZone}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><MapPin className="h-5 w-5" /> Zones de {selectedUser?.nom} {selectedUser?.prenoms}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-2">
-              <Select value={selectedDistrict} onValueChange={v => { setSelectedDistrict(v); setSelectedRegion(""); setSelectedDepartement(""); }}>
+            <div className="grid grid-cols-2 gap-2">
+              <Select value={selectedDistrict} onValueChange={v => { setSelectedDistrict(v); setSelectedRegion(""); setSelectedDepartement(""); setSelectedSP(""); }}>
                 <SelectTrigger><SelectValue placeholder="District" /></SelectTrigger>
                 <SelectContent>
                   {districts.map(d => <SelectItem key={d.id} value={d.id}>{d.nom}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Select value={selectedRegion} onValueChange={v => { setSelectedRegion(v); setSelectedDepartement(""); }}>
+              <Select value={selectedRegion} onValueChange={v => { setSelectedRegion(v); setSelectedDepartement(""); setSelectedSP(""); }} disabled={!selectedDistrict}>
                 <SelectTrigger><SelectValue placeholder="Région" /></SelectTrigger>
                 <SelectContent>
                   {filteredRegions.map(r => <SelectItem key={r.id} value={r.id}>{r.nom}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Select value={selectedDepartement} onValueChange={setSelectedDepartement}>
+              <Select value={selectedDepartement} onValueChange={v => { setSelectedDepartement(v); setSelectedSP(""); }} disabled={!selectedRegion}>
                 <SelectTrigger><SelectValue placeholder="Département" /></SelectTrigger>
                 <SelectContent>
                   {filteredDeps.map(d => <SelectItem key={d.id} value={d.id}>{d.nom}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <Select value={selectedSP} onValueChange={setSelectedSP} disabled={!selectedDepartement}>
+                <SelectTrigger><SelectValue placeholder="Sous-préfecture" /></SelectTrigger>
+                <SelectContent>
+                  {filteredSPs.map(s => <SelectItem key={s.id} value={s.id}>{s.nom}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-            <Button onClick={addZoneAssignment} disabled={!selectedDistrict} className="w-full">Assigner la zone</Button>
-            <div className="space-y-2">
+            <Button onClick={addZoneAssignment} disabled={!selectedDistrict} className="w-full gradient-primary">Assigner la zone</Button>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
               {zoneAssignments.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">Aucune zone assignée</p>
               ) : (
                 zoneAssignments.map(z => (
                   <div key={z.id} className="flex items-center justify-between p-2 bg-muted rounded">
                     <span className="text-sm">
-                      {z.districts?.nom || ""} {z.regions?.nom ? `> ${z.regions.nom}` : ""} {z.departements?.nom ? `> ${z.departements.nom}` : ""}
+                      {z.districts?.nom || ""} {z.regions?.nom ? `> ${z.regions.nom}` : ""} {z.departements?.nom ? `> ${z.departements.nom}` : ""} {z.sous_prefectures?.nom ? `> ${z.sous_prefectures.nom}` : ""}
                     </span>
                     <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => removeZoneAssignment(z.id)}>Retirer</Button>
                   </div>
